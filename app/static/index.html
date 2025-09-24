@@ -3,127 +3,105 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Поиск</title>
+    <title></title>
     <style>
-      :root {
-        --bg: #f8faf9;
-        --panel: #ffffff;
-        --text: #0f172a;
-        --muted: #6b7280;
-        --teal: #157a82;
-        --teal-ghost: rgba(21, 122, 130, 0.08);
-        --ring: rgba(21, 122, 130, 0.25);
-        --radius: 16px;
-      }
+      :root { --bg: #f3eee4; --line: #2b2b2b; --line-muted: #3a3a3a; }
       * { box-sizing: border-box; }
       html, body { height: 100%; }
-      body {
-        margin: 0;
-        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-        background: var(--bg);
-        color: var(--text);
-      }
-      .page {
-        min-height: 100%;
-        display: grid;
-        place-items: center;
-        padding: 24px;
-      }
-      .search {
-        width: min(960px, 92vw);
-        background: var(--panel);
-        border-radius: calc(var(--radius) * 1.25);
-        box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 8px 40px rgba(2, 8, 23, 0.06);
-        padding: 28px 20px;
-      }
-      .input-wrap {
+      body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background: var(--bg); }
+      .page { min-height: 100%; height: 100vh; display: flex; justify-content: center; padding: 24px; overflow: hidden; }
+      .shell { width: min(960px, 92vw); height: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
+      .chat {
+        width: 100%;
+        max-height: min(40vh, 400px);
+        overflow: auto;
+        margin-bottom: 18px;
+        padding: 4px 2px;
+        opacity: 0;
+        transform: translateY(-8px);
+        transition: transform .35s ease, opacity .35s ease;
         display: flex;
-        align-items: center;
-        gap: 12px;
-        border: 1px solid #e5e7eb;
-        background: #fff;
-        border-radius: 999px;
+        flex-direction: column;
+        justify-content: flex-end;
+      }
+      .chat.ready { opacity: 1; transform: translateY(0); max-height: calc(100vh - 220px); }
+      .msg { display: flex; margin: 8px 0; }
+      .msg.you { justify-content: flex-end; }
+      .msg.bot { justify-content: flex-start; }
+      .bubble {
+        border: 2px solid var(--line-muted);
+        color: var(--line);
+        border-radius: 16px;
         padding: 10px 14px;
-        transition: box-shadow .2s ease, border-color .2s ease;
+        background: transparent;
+        max-width: 85%;
+        white-space: pre-wrap;
       }
-      .input-wrap:focus-within {
-        border-color: var(--teal);
-        box-shadow: 0 0 0 4px var(--ring);
-      }
-      .icon-btn {
-        height: 36px; width: 36px;
-        display: grid; place-items: center;
-        border-radius: 10px;
-        border: 1px solid #e5e7eb;
-        background: var(--teal-ghost);
-        color: var(--teal);
-        cursor: pointer;
-      }
-      .field {
-        flex: 1;
-        border: 0; outline: none;
+      .input-wrap { transition: transform .35s ease; transform: translateY(-28vh); }
+      .input-wrap.dropped { transform: translateY(0); }
+      .input-min {
+        width: 100%;
+        background: transparent;
+        border: 2px solid var(--line-muted);
+        color: var(--line);
+        border-radius: 22px;
+        padding: 18px 22px;
         font-size: 18px;
-        padding: 8px 6px;
+        outline: none;
       }
-      .hint-row {
-        display: flex; align-items: center; gap: 10px;
-        margin-top: 16px;
-        color: var(--muted);
-        font-size: 14px;
-      }
-      .kbd {
-        border: 1px solid #e5e7eb;
-        border-bottom-width: 2px;
-        padding: 2px 6px;
-        border-radius: 6px;
-        background: #fff;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-        color: #334155;
-      }
-      .logo-space { height: 62px; }
-      .visually-hidden { position: absolute; clip: rect(0 0 0 0); clip-path: inset(50%); height: 1px; width: 1px; overflow: hidden; white-space: nowrap; }
+      .input-min::placeholder { color: #686868; opacity: .6; }
+      .input-min:focus { border-color: var(--line); }
     </style>
   </head>
   <body>
     <main class="page">
-      <div class="search" role="search">
-        <div class="logo-space" aria-hidden="true"></div>
-        <label class="visually-hidden" for="q">Введите запрос</label>
-        <div class="input-wrap">
-          <button class="icon-btn" id="btn-search" title="Искать">
-            🔍
-          </button>
-          <input id="q" class="field" placeholder="Спросите что угодно" autofocus />
-          <button class="icon-btn" id="btn-ask" title="Подсказать">
-            💡
-          </button>
-        </div>
-        <div class="hint-row">
-          <span>Нажмите</span>
-          <span class="kbd">Enter</span>
-          <span>или</span>
-          <span class="kbd">Ctrl</span> + <span class="kbd">K</span>
+      <div class="shell" role="search">
+        <div id="chat" class="chat" aria-live="polite"></div>
+        <div id="wrap" class="input-wrap">
+          <input id="q" class="input-min" placeholder="" autofocus />
         </div>
       </div>
     </main>
 
     <script>
       const input = document.getElementById('q');
+      const wrap = document.getElementById('wrap');
+      const chat = document.getElementById('chat');
+      let started = false;
+
+      const append = (role, text) => {
+        const row = document.createElement('div');
+        row.className = 'msg ' + role;
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.textContent = text;
+        row.appendChild(bubble);
+        chat.appendChild(row);
+        chat.scrollTop = chat.scrollHeight;
+      };
+
       const search = () => {
         const value = input.value.trim();
         if (!value) return;
-        fetch('/api/ping').then(() => {
-          alert('Поиск: ' + value);
-        });
-      };
-      document.getElementById('btn-search').addEventListener('click', search);
-      document.getElementById('btn-ask').addEventListener('click', () => input.focus());
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') search();
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-          e.preventDefault(); input.focus();
+        if (!started) {
+          started = true;
+          wrap.classList.add('dropped');
+          chat.classList.add('ready');
         }
-      });
+        append('you', value);
+        input.value = '';
+        fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: value })
+        })
+        .then(r => r.json())
+        .then(data => {
+          append('bot', data.reply || '...');
+        })
+        .catch(() => append('bot', '...'));
+      };
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
     </script>
   </body>
   </html>
